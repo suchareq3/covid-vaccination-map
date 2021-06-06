@@ -8,9 +8,10 @@ Python program that uses Our World In Data's vaccination data to generate a worl
 
 # Usage
 Unpack the included .json data file and put all the included files in the same directory. Fire up main.py and follow the instructions. 
-After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg (preferably on a modern browser) in the same directory. 
+After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg - preferably on a modern browser
 
 # Known issues
+- The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and unfortunately I could not fix this issue.
 - Many countries may have no data assigned to them due to no data being available on the day given by the user. 
 This will soon be fixed by having the program look at up to 2 previous weeks to grab data from the past instead.
 - The date range is hard-coded, not letting the user access fresh data from OWID.
@@ -22,3 +23,5 @@ This will soon be fixed by having the program figure out the latest accessible d
 
 # Notes
 This is my first project in my programming journey! If you have tips on how I can improve this program, please feel free to message me and let me know.
+
+The included owid_to_pygal.json file was also created by me, using a combination of Excel and Python code.
