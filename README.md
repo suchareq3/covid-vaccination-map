@@ -14,8 +14,6 @@ After the program's done generating the world map, you can access it by opening 
 - The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and unfortunately I could not fix this issue.
 - Many countries may have no data assigned to them due to no data being available on the day given by the user. 
 This will soon be fixed by having the program look at up to 2 previous weeks to grab data from the past instead.
-- The date range is hard-coded, not letting the user access fresh data from OWID.
-This will soon be fixed by having the program figure out the latest accessible date in the OWID data file.
 
 # TODO's
 - Add choice for data to be continent-based rather than country-based
