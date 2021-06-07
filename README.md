@@ -18,7 +18,6 @@ This will soon be fixed by having the program look at up to 2 previous weeks to 
 # TODO's
 - Add choice for data to be continent-based rather than country-based
 - To make it more user friendly, let the program figure out the latest accessible data based on the OWID data file (rather than basing on the hard-coded date)
-- Use OWID's much more modestly sized vaccination.json file from Github rather than the giant owid-covid-data.json file from their website
 - Change the colors to be much less noticeable for countries with smaller %'s of vaccinations
 - Add a second, greyed out "No data" group 
 
