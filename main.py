@@ -17,21 +17,35 @@ def main():
         print("Welcome! This program generates a world map full of vaccination data\n"
               "in the form of a .svg file in the same location as main.py\n"
               "based on your user-given date and vaccination type.\n")
-        user_date = take_date()
+        newest_date = update_date(covid_data)
+        user_date = take_date(newest_date)
         vacc_type = take_vacc_type()
         generate_map(covid_data, country_codes, user_date, vacc_type)
 
 
-def take_date():
+def update_date(covid_data):
+    """
+    Checks the data file's most recent entry
+    Returns the most recent date as a YYYY-MM-DD string
+    """
+    # Temporary variable to prevent errors
+    for country_code, country_info in covid_data.items():
+        # Check USA's data because of the reliably high frequency of updates
+        if country_code == "USA":
+            data_entries = country_info['data']
+            last_entry = data_entries[-1]
+            latest_date = last_entry['date']
+            return latest_date
+
+
+def take_date(newest_date):
     """
     Receives a valid date from user input and returns it as a "datetime" object
     """
-    # TODO: instead of having a hard-coded date, calculate the last accessible date in the OWID .json file
-    #   (to make it easier to just download & drag and drop the OWID .json data file into the directory)
 
     # Add lower and upper bounds
     lower_end_date = datetime.strptime("2020-12-08", "%Y-%m-%d")
-    higher_end_date = datetime.strptime("2021-05-30", "%Y-%m-%d")
+    higher_end_date = datetime.strptime(newest_date, "%Y-%m-%d")
     # Temporary variable to prevent error
     conv_user_date = datetime.now()
 
@@ -40,7 +54,7 @@ def take_date():
     # 2) date is between the range of allowed dates
     while True:
         try:
-            print("NOTE: The date has to be between 2020-12-08 and 2021-05-30.")
+            print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
             user_date = input("Type date here (YYYY-MM-DD): ")
             conv_user_date = datetime.strptime(user_date, "%Y-%m-%d")
 
