@@ -11,12 +11,15 @@ from pygal.style import Style
 def main():
     # TODO: add choice for continent data rather than country data
 
-    print("Welcome! This program generates a world map full of vaccination data\n"
-          "in the form of a .svg file in the same location as main.py\n"
-          "based on your user-given date and vaccination type.\n")
-    user_date = take_date()
-    vacc_type = take_vacc_type()
-    generate_map(user_date, vacc_type)
+    with open("owid-covid-data.json") as data_file, open("owid_to_pygal.json") as format_file:
+        covid_data = json.load(data_file)
+        country_codes = json.load(format_file)
+        print("Welcome! This program generates a world map full of vaccination data\n"
+              "in the form of a .svg file in the same location as main.py\n"
+              "based on your user-given date and vaccination type.\n")
+        user_date = take_date()
+        vacc_type = take_vacc_type()
+        generate_map(covid_data, country_codes, user_date, vacc_type)
 
 
 def take_date():
@@ -33,8 +36,8 @@ def take_date():
     conv_user_date = datetime.now()
 
     # Keep asking for a date until:
-    # a) date format is correct
-    # b) date is between the range of allowed dates
+    # 1) date format is correct
+    # 2) date is between the range of allowed dates
     while True:
         try:
             print("NOTE: The date has to be between 2020-12-08 and 2021-05-30.")
@@ -75,7 +78,7 @@ def take_vacc_type():
     return response
 
 
-def generate_map(user_date, vacc_type):
+def generate_map(covid_data, country_codes, user_date, vacc_type):
     """
     Generates a .svg file with the world map, using data from the included "owid-covid-data.json" file.
     Data shown on the map is picked based on the user's responses.
@@ -88,35 +91,32 @@ def generate_map(user_date, vacc_type):
     custom_style = Style(colors=('#169828', '#BBBBBB'))
     worldmap_chart = pygal.maps.world.World(style=custom_style)
     worldmap_chart.title = "Vaccination data for " + datetime.strftime(user_date, "%Y-%m-%d")
-    with open("owid-covid-data.json") as file1, open("owid_to_pygal.json") as file2:
-        covid_data = json.load(file1)
-        country_codes = json.load(file2)
-        map_dict = {}
+    map_dict = {}
 
-        for OWID_country_code, country_info in covid_data.items():
-            # Skip continent data
-            if OWID_country_code.startswith("OWID"):
-                continue
-            # Skip if country code doesn't exist in the included OWID_to_Pygal.json comparison table.
-            if OWID_country_code not in country_codes:
-                continue
-            country_code = country_codes[OWID_country_code]
-            total_pop = country_info["population"]
-            for day in country_info["data"]:
-                # TODO: better/more efficient skipping forward to the date specified by user,
-                #   i can definitely cut down on the high number of (potentially unnecessary) loops/checks...
-                date = datetime.strptime(day["date"], "%Y-%m-%d")
-                if date == user_date:
-                    # TODO: if no data for the given day, instead of skipping it like i am right now,
-                    #  attempt to look for closest past (reasonable, max 2 weeks) available data point
-                    # Calculate vacc data only if data for the country exists
-                    if "total_vaccinations" in day:
-                        map_dict[country_code] = calc_vacc_percent(day, total_pop, vacc_type)
-                    # Since you've found the date, break out of the loop to skip next dates (a sliver of efficiency)
-                    break
-        # TODO: change this based on user-selected type of vaccination data
-        worldmap_chart.add('Vaccination %', map_dict)
-        worldmap_chart.render_to_file('vaccmap.svg')
+    for OWID_country_code, country_info in covid_data.items():
+        # Skip continent data
+        if OWID_country_code.startswith("OWID"):
+            continue
+        # Skip if country code doesn't exist in the included OWID_to_Pygal.json comparison table.
+        if OWID_country_code not in country_codes:
+            continue
+        country_code = country_codes[OWID_country_code]
+        total_pop = country_info["population"]
+        for day in country_info["data"]:
+            # TODO: better/more efficient skipping forward to the date specified by user,
+            #   i can definitely cut down on the high number of (potentially unnecessary) loops/checks...
+            date = datetime.strptime(day["date"], "%Y-%m-%d")
+            if date == user_date:
+                # TODO: if no data for the given day, instead of skipping it like i am right now,
+                #  attempt to look for closest past (reasonable, max 2 weeks) available data point
+                # Calculate vacc data only if data for the country exists
+                if "total_vaccinations" in day:
+                    map_dict[country_code] = calc_vacc_percent(day, total_pop, vacc_type)
+                # Since you've found the date, break out of the loop to skip next dates (a sliver of efficiency)
+                break
+    # TODO: change this based on user-selected type of vaccination data
+    worldmap_chart.add('Vaccination %', map_dict)
+    worldmap_chart.render_to_file('vaccmap.svg')
 
 
 def calc_vacc_percent(day, total_pop, vacc_type):
