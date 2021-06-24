@@ -18,7 +18,9 @@ This will soon be fixed by having the program look at up to 2 previous weeks to 
 # TODO's
 - Add choice for data to be continent-based rather than country-based
 - Change the colors to be much less noticeable for countries with smaller %'s of vaccinations
-- Add a second, greyed out "No data" group 
+- Add a second, greyed out "No data" group
+- Change what happens when the user enters an incorrect date - at some point just skip to the latest data entry point
+- Introduce the wonders of the internet to the program by letting the user download the latest data file directly
 
 # Credits
 - Pygal was made by [Kozea](https://github.com/Kozea)
