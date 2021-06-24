@@ -5,6 +5,7 @@ Vaccination data is based on user-given date and type of vaccination (1st dose o
 import json
 from datetime import datetime
 import pygal
+from pygal.style import Style
 
 
 def main():
@@ -80,14 +81,16 @@ def generate_map(user_date, vacc_type):
     Data shown on the map is picked based on the user's responses.
     """
     # TODO: break this function up into smaller ones for readability's sake
-    # TODO: change Pygal's default color/style of map + make it so that smaller %'s aren't so aggressively light
+    # TODO: make it so that smaller %'s aren't so aggressively light
     # TODO: for countries with no available data (or 0% vaccs), put them into a second, grey "No data" group
     # TODO: see if I can make the map larger
+
+    custom_style = Style(colors=('#169828', '#BBBBBB'))
+    worldmap_chart = pygal.maps.world.World(style=custom_style)
+    worldmap_chart.title = "Vaccination data for " + datetime.strftime(user_date, "%Y-%m-%d")
     with open("owid-covid-data.json") as file1, open("owid_to_pygal.json") as file2:
         covid_data = json.load(file1)
         country_codes = json.load(file2)
-        worldmap_chart = pygal.maps.world.World()
-        worldmap_chart.title = "Vaccination data for " + datetime.strftime(user_date, "%Y-%m-%d")
         map_dict = {}
 
         for OWID_country_code, country_info in covid_data.items():
