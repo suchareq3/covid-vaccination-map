@@ -27,6 +27,6 @@ After the program's done generating the world map, you can access it by opening 
 # Notes
 This is my first project in my programming journey! If you have tips on how I can improve this program, please feel free to message me and let me know.
 
-To alleviate the scarcity of data in some countries, the program checks for the most recent, available data for each country for up to 2 weeks away from the user-given date.
+To alleviate the scarcity of data in some countries, the program checks for the most recent, available data for each country for up to 3 weeks away from the user-given date.
 
 The included owid_to_pygal.json file was also created by me, using a combination of Excel and Python code.

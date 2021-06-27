@@ -116,7 +116,7 @@ def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_
     """
     An extension of collect_data()
     1) Determines whether data exists for the given country and given day.
-        a) if it doesn't exist for the given day, attempt to find data within the last 14 days
+        a) if it doesn't exist for the given day, attempt to find data within the last 21 days
     2) Calculates vaccination percentage and returns that into the current country's value
 
     """
@@ -124,7 +124,7 @@ def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_
     vacc_percent = None
     day = country_data[count]
 
-    for i in range(1, 15):
+    for i in range(1, 21):
         if "total_vaccinations" not in day:
             day = country_data[count - i]
             continue
