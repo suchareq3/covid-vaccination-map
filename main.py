@@ -28,7 +28,6 @@ def update_date(covid_data):
     Checks the data file's most recent entry
     Returns the most recent date as a YYYY-MM-DD string
     """
-    # Temporary variable to prevent errors
     for country_code, country_info in covid_data.items():
         # Check USA's data because of the reliably high frequency of updates
         if country_code == "USA":
@@ -55,7 +54,7 @@ def take_date(newest_date):
     while True:
         try:
             print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
-            user_date = input("Type date here (YYYY-MM-DD): ")
+            user_date = input("Type date here (YYYY-mm-dd): ")
             conv_user_date = datetime.strptime(user_date, "%Y-%m-%d")
 
         # datetime.strptime causes a ValueError if the format is incorrect
