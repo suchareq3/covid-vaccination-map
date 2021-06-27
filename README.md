@@ -12,8 +12,6 @@ After the program's done generating the world map, you can access it by opening 
 
 # Known issues
 - The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and unfortunately I could not fix this issue.
-- Many countries may have no data assigned to them due to no data being available on the day given by the user. 
-This will soon be fixed by having the program look at up to 2 previous weeks to grab data from the past instead.
 
 # TODO's
 - Add choice for data to be continent-based rather than country-based
@@ -28,5 +26,7 @@ This will soon be fixed by having the program look at up to 2 previous weeks to 
 
 # Notes
 This is my first project in my programming journey! If you have tips on how I can improve this program, please feel free to message me and let me know.
+
+To alleviate the scarcity of data in some countries, the program checks for the most recent, available data for each country for up to 2 weeks away from the user-given date.
 
 The included owid_to_pygal.json file was also created by me, using a combination of Excel and Python code.

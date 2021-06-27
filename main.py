@@ -93,7 +93,6 @@ def collect_data(covid_data, country_codes, user_date, vacc_type):
     """
     Collects data from the main data file based on provided user preferences
     Returns a table of country data to be used in generate_map
-    Returns a tuple with two tables of country data to be used in generate_map
     """
     valid_countries = {}
     for OWID_country_code, country_info in covid_data.items():
@@ -108,31 +107,38 @@ def collect_data(covid_data, country_codes, user_date, vacc_type):
             # day == country_data[count]
             date = datetime.strptime(day["date"], "%Y-%m-%d")
             if date == user_date:
-                valid_countries = validate_data(country_code, valid_countries, total_pop, vacc_type, day)
+                valid_countries = calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_data, count)
                 break
     return valid_countries
 
 
-def validate_data(country_code, valid_countries, total_pop, vacc_type, day):
+def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_data, count):
     """
     An extension of collect_data()
     1) Determines whether data exists for the given country and given day.
+        a) if it doesn't exist for the given day, attempt to find data within the last 14 days
     2) Calculates vaccination percentage and returns that into the current country's value
+
     """
     # Temporary variable
     vacc_percent = None
+    day = country_data[count]
 
-    # TODO: check out whether there's a better looking alternative for these if/else statements
-    if "total_vaccinations" in day:
-        vacc_pop = 0
-        if vacc_type == "one":
-            if "people_vaccinated" in day:
-                vacc_pop = day["people_vaccinated"]
+    for i in range(1, 15):
+        if "total_vaccinations" not in day:
+            day = country_data[count - i]
+            continue
+        # TODO: check out whether there's a better looking alternative for these if/else statements
         else:
-            if "people_fully_vaccinated" in day:
-                vacc_pop = day["people_fully_vaccinated"]
-        vacc_percent = round((vacc_pop / total_pop) * 100, 2)
-
+            vacc_pop = 0
+            if vacc_type == "one":
+                if "people_vaccinated" in day:
+                    vacc_pop = day["people_vaccinated"]
+            else:
+                if "people_fully_vaccinated" in day:
+                    vacc_pop = day["people_fully_vaccinated"]
+            vacc_percent = round((vacc_pop / total_pop) * 100, 2)
+            break
     valid_countries[country_code] = vacc_percent
     return valid_countries
 
