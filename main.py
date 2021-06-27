@@ -20,7 +20,8 @@ def main():
         newest_date = update_date(covid_data)
         user_date = take_date(newest_date)
         vacc_type = take_vacc_type()
-        generate_map(covid_data, country_codes, user_date, vacc_type)
+        valid_countries = collect_data(covid_data, country_codes, user_date, vacc_type)
+        generate_map(valid_countries, user_date)
 
 
 def update_date(covid_data):
@@ -46,11 +47,8 @@ def take_date(newest_date):
     lower_end_date = datetime.strptime("2020-12-08", "%Y-%m-%d")
     higher_end_date = datetime.strptime(newest_date, "%Y-%m-%d")
     # Temporary variable to prevent error
-    conv_user_date = datetime.now()
+    conv_user_date = None
 
-    # Keep asking for a date until:
-    # 1) date format is correct
-    # 2) date is between the range of allowed dates
     while True:
         try:
             print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
@@ -74,15 +72,15 @@ def take_date(newest_date):
 
 def take_vacc_type():
     """
-    Returns type of vaccination data (1st dose or fully vaccinated)
+    Returns type of user-specified vaccination data (1st dose or fully vaccinated)
     """
+    # TODO: I can definitely change this to be far less 'iffy' if you catch my drift (smth with enums?)
     while True:
         response = input("Type vaccination type here (\"ONE\" dose/\"FULLY\" vaccinated): ").lower()
         if response not in ("one", "one dose", "fully", "fully vaccinated"):
             print("INCORRECT RESPONSE!\n")
             continue
         else:
-            # If response is correct, break out of the loop.
             if response == "fully vaccinated":
                 response = "fully"
             if response == "one dose":
@@ -91,64 +89,69 @@ def take_vacc_type():
     return response
 
 
-def generate_map(covid_data, country_codes, user_date, vacc_type):
+def collect_data(covid_data, country_codes, user_date, vacc_type):
     """
-    Generates a .svg file with the world map, using data from the included "owid-covid-data.json" file.
-    Data shown on the map is picked based on the user's responses.
+    Collects data from the main data file based on provided user preferences
+    Returns a table of country data to be used in generate_map
+    Returns a tuple with two tables of country data to be used in generate_map
     """
-    # TODO: break this function up into smaller ones for readability's sake
+    valid_countries = {}
+    for OWID_country_code, country_info in covid_data.items():
+        # Skip invalid countries
+        # TODO: change this based on whether user wants continent data or country data
+        if OWID_country_code.startswith("OWID") or OWID_country_code not in country_codes:
+            continue
+        total_pop = country_info["population"]
+        country_data = country_info["data"]
+        country_code = country_codes[OWID_country_code]
+        for count, day in enumerate(country_data):
+            # day == country_data[count]
+            date = datetime.strptime(day["date"], "%Y-%m-%d")
+            if date == user_date:
+                valid_countries = validate_data(country_code, valid_countries, total_pop, vacc_type, day)
+                break
+    return valid_countries
+
+
+def validate_data(country_code, valid_countries, total_pop, vacc_type, day):
+    """
+    An extension of collect_data()
+    1) Determines whether data exists for the given country and given day.
+    2) Calculates vaccination percentage and returns that into the current country's value
+    """
+    # Temporary variable
+    vacc_percent = None
+
+    # TODO: check out whether there's a better looking alternative for these if/else statements
+    if "total_vaccinations" in day:
+        vacc_pop = 0
+        if vacc_type == "one":
+            if "people_vaccinated" in day:
+                vacc_pop = day["people_vaccinated"]
+        else:
+            if "people_fully_vaccinated" in day:
+                vacc_pop = day["people_fully_vaccinated"]
+        vacc_percent = round((vacc_pop / total_pop) * 100, 2)
+
+    valid_countries[country_code] = vacc_percent
+    return valid_countries
+
+
+def generate_map(valid_countries, user_date):
+    """
+    Determines the style (colors) to be used in the world map
+    Then generates a .svg file with the world map, using data from collect_data()
+    """
     # TODO: make it so that smaller %'s aren't so aggressively light
-    # TODO: for countries with no available data (or 0% vaccs), put them into a second, grey "No data" group
     # TODO: see if I can make the map larger
 
     custom_style = Style(colors=('#169828', '#BBBBBB'))
     worldmap_chart = pygal.maps.world.World(style=custom_style)
     worldmap_chart.title = "Vaccination data for " + datetime.strftime(user_date, "%Y-%m-%d")
-    map_dict = {}
 
-    for OWID_country_code, country_info in covid_data.items():
-        # Skip continent data
-        if OWID_country_code.startswith("OWID"):
-            continue
-        # Skip if country code doesn't exist in the included OWID_to_Pygal.json comparison table.
-        if OWID_country_code not in country_codes:
-            continue
-        country_code = country_codes[OWID_country_code]
-        total_pop = country_info["population"]
-        for day in country_info["data"]:
-            # TODO: better/more efficient skipping forward to the date specified by user,
-            #   i can definitely cut down on the high number of (potentially unnecessary) loops/checks...
-            date = datetime.strptime(day["date"], "%Y-%m-%d")
-            if date == user_date:
-                # TODO: if no data for the given day, instead of skipping it like i am right now,
-                #  attempt to look for closest past (reasonable, max 2 weeks) available data point
-                # Calculate vacc data only if data for the country exists
-                if "total_vaccinations" in day:
-                    map_dict[country_code] = calc_vacc_percent(day, total_pop, vacc_type)
-                # Since you've found the date, break out of the loop to skip next dates (a sliver of efficiency)
-                break
     # TODO: change this based on user-selected type of vaccination data
-    worldmap_chart.add('Vaccination %', map_dict)
+    worldmap_chart.add('Vaccination %', valid_countries)
     worldmap_chart.render_to_file('vaccmap.svg')
-
-
-def calc_vacc_percent(day, total_pop, vacc_type):
-    """
-    Assumes that 'total_vaccinations' exists in 'day'.
-    Takes day data, total population & vaccination type
-    Calculates and returns vaccination percentage
-    """
-    # TODO: check out whether there's a better looking alternative for these if/else statements
-
-    # Temporary variable
-    vacc_pop = 0
-    if vacc_type == "one":
-        if "people_vaccinated" in day:
-            vacc_pop = day["people_vaccinated"]
-    else:
-        if "people_fully_vaccinated" in day:
-            vacc_pop = day["people_fully_vaccinated"]
-    return round((vacc_pop / total_pop)*100, 2)
 
 
 if __name__ == '__main__':
