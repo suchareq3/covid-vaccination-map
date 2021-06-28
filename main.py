@@ -124,7 +124,7 @@ def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_
     vacc_percent = None
     day = country_data[count]
 
-    for i in range(1, 21):
+    for i in range(1, 22):
         if "total_vaccinations" not in day:
             day = country_data[count - i]
             continue
