@@ -2,6 +2,7 @@
 Generates a world map with worldwide vaccination data in the form of a .svg file.
 Vaccination data is based on user-given date and type of vaccination (1st dose or fully vaccinated).
 """
+import csv
 import json
 from datetime import datetime
 import pygal
@@ -10,7 +11,6 @@ from pygal.style import Style
 
 def main():
     # TODO: add choice for continent data rather than country data
-
     with open("owid-covid-data.json") as data_file, open("owid_to_pygal.json") as format_file:
         covid_data = json.load(data_file)
         country_codes = json.load(format_file)
@@ -20,8 +20,8 @@ def main():
         newest_date = update_date(covid_data)
         user_date = take_date(newest_date)
         vacc_type = take_vacc_type()
-        valid_countries = collect_data(covid_data, country_codes, user_date, vacc_type)
-        generate_map(valid_countries, user_date)
+        valid_countries, invalid_countries = collect_data(covid_data, country_codes, user_date, vacc_type)
+        generate_map(valid_countries, invalid_countries, user_date)
 
 
 def update_date(covid_data):
@@ -95,6 +95,7 @@ def collect_data(covid_data, country_codes, user_date, vacc_type):
     Returns a table of country data to be used in generate_map
     """
     valid_countries = {}
+    invalid_countries = {}
     for OWID_country_code, country_info in covid_data.items():
         # Skip invalid countries
         # TODO: change this based on whether user wants continent data or country data
@@ -107,24 +108,26 @@ def collect_data(covid_data, country_codes, user_date, vacc_type):
             # day == country_data[count]
             date = datetime.strptime(day["date"], "%Y-%m-%d")
             if date == user_date:
-                valid_countries = calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_data, count)
+                valid_countries[country_code] = calc_vacc_perc(total_pop, vacc_type, country_data, count)
                 break
-    return valid_countries
+        if country_code not in valid_countries or valid_countries[country_code] == 0:
+            invalid_countries[country_code] = valid_countries.pop(country_code, 0)
+    invalid_countries = fill_map_holes(invalid_countries, valid_countries)
+    return valid_countries, invalid_countries
 
 
-def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_data, count):
+def calc_vacc_perc(total_pop, vacc_type, country_data, count):
     """
     An extension of collect_data()
     1) Determines whether data exists for the given country and given day.
         a) if it doesn't exist for the given day, attempt to find data within the last 21 days
     2) Calculates vaccination percentage and returns that into the current country's value
-
     """
     # Temporary variable
-    vacc_percent = None
+    vacc_percent = 0
     day = country_data[count]
 
-    for i in range(1, 21):
+    for i in range(1, 22):
         if "total_vaccinations" not in day:
             day = country_data[count - i]
             continue
@@ -139,11 +142,24 @@ def calc_vacc_perc(country_code, valid_countries, total_pop, vacc_type, country_
                     vacc_pop = day["people_fully_vaccinated"]
             vacc_percent = round((vacc_pop / total_pop) * 100, 2)
             break
-    valid_countries[country_code] = vacc_percent
-    return valid_countries
+    return vacc_percent
 
 
-def generate_map(valid_countries, user_date):
+def fill_map_holes(invalid_countries, valid_countries):
+    """
+    An extension of collect_data()
+    Determines which countries on the Pygal map weren't "mentioned" during the assignment process
+    Then assigns them to invalid_countries, filling out any potential non-assigned countries on the map
+    """
+    with open("pygal-countries.csv", 'r', encoding='utf-8-sig', newline='') as file:
+        for pygal_country in file:
+            pygal_country = pygal_country.strip()
+            if pygal_country not in invalid_countries and pygal_country not in valid_countries:
+                invalid_countries[pygal_country] = 0
+    return invalid_countries
+
+
+def generate_map(valid_countries, invalid_countries, user_date):
     """
     Determines the style (colors) to be used in the world map
     Then generates a .svg file with the world map, using data from collect_data()
@@ -157,6 +173,7 @@ def generate_map(valid_countries, user_date):
 
     # TODO: change this based on user-selected type of vaccination data
     worldmap_chart.add('Vaccination %', valid_countries)
+    worldmap_chart.add('No data', invalid_countries)
     worldmap_chart.render_to_file('vaccmap.svg')
 
 

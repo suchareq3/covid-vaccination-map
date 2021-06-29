@@ -8,15 +8,14 @@ Python program that uses Our World In Data's vaccination data to generate a worl
 
 # Usage
 Unpack the included .json data file and put all the included files in the same directory. Fire up main.py and follow the instructions. 
-After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg - preferably on a modern browser
+After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg - preferably on a modern browser.
 
 # Known issues
-- The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and unfortunately I could not fix this issue.
+- The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and is not something I can fix.
 
 # TODO's
 - Add choice for data to be continent-based rather than country-based
 - Change the colors to be much less noticeable for countries with smaller %'s of vaccinations
-- Add a second, greyed out "No data" group
 - Change what happens when the user enters an incorrect date - at some point just skip to the latest data entry point
 - Introduce the wonders of the internet to the program by letting the user download the latest data file directly
 
