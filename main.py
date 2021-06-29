@@ -1,8 +1,7 @@
 """
 Generates a world map with worldwide vaccination data in the form of a .svg file.
-Vaccination data is based on user-given date and type of vaccination (1st dose or fully vaccinated).
+Vaccination data is based on a user-given date and type of vaccination (1st dose or fully vaccinated).
 """
-import csv
 import json
 from datetime import datetime
 import pygal
@@ -54,7 +53,6 @@ def take_date(newest_date):
             print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
             user_date = input("Type date here (YYYY-mm-dd): ")
             conv_user_date = datetime.strptime(user_date, "%Y-%m-%d")
-
         # datetime.strptime causes a ValueError if the format is incorrect
         except ValueError:
             print("INCORRECT DATE FORMAT!\n")
@@ -112,6 +110,7 @@ def collect_data(covid_data, country_codes, user_date, vacc_type):
                 break
         if country_code not in valid_countries or valid_countries[country_code] == 0:
             invalid_countries[country_code] = valid_countries.pop(country_code, 0)
+    # Add countries that the loop might have missed
     invalid_countries = fill_map_holes(invalid_countries, valid_countries)
     return valid_countries, invalid_countries
 
