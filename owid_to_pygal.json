@@ -169,5 +169,11 @@
     "YEM": "ye",
     "ZAF": "za",
     "ZMB": "zm",
-    "ZWE": "zw"
+    "ZWE": "zw",
+    "OWID_ASI":"asia",
+    "OWID_EUR":"europe",
+    "OWID_AFR":"africa",
+    "OWID_NAM":"north_america",
+    "OWID_SAM":"south_america",
+    "OWID_OCE":"oceania"
 }

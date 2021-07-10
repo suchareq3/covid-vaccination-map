@@ -1,6 +1,6 @@
 """
 Generates a world map with worldwide vaccination data in the form of a .svg file.
-Vaccination data is based on a user-given date and type of vaccination (1st dose or fully vaccinated).
+Vaccination data is based on the user-given date and other preferences specified by the user.
 """
 import json
 from datetime import datetime
@@ -9,7 +9,6 @@ from pygal.style import Style
 
 
 def main():
-    # TODO: add choice for continent data rather than country data
     with open("owid-covid-data.json") as data_file, open("owid_to_pygal.json") as format_file:
         covid_data = json.load(data_file)
         country_codes = json.load(format_file)
@@ -18,9 +17,12 @@ def main():
               "based on your user-given date and vaccination type.\n")
         newest_date = update_date(covid_data)
         user_date = take_date(newest_date)
-        vacc_type = take_vacc_type()
-        valid_countries, invalid_countries = collect_data(covid_data, country_codes, user_date, vacc_type)
-        generate_map(valid_countries, invalid_countries, user_date)
+        area_type = take_user_preference(["country", "continent"],
+                                         "area type (COUNTRIES or CONTINENTS)")
+        vacc_doses = take_user_preference(["one dose", "all doses"],
+                                          "vaccination doses (ONE dose or ALL doses)")
+        valid_countries, invalid_countries = collect_data(covid_data, country_codes, user_date, vacc_doses, area_type)
+        generate_map(valid_countries, invalid_countries, user_date, area_type, vacc_doses)
 
 
 def update_date(covid_data):
@@ -41,81 +43,86 @@ def take_date(newest_date):
     """
     Receives a valid date from user input and returns it as a "datetime" object
     """
-
-    # Add lower and upper bounds
     lower_end_date = datetime.strptime("2020-12-08", "%Y-%m-%d")
     higher_end_date = datetime.strptime(newest_date, "%Y-%m-%d")
-    # Temporary variable to prevent error
-    conv_user_date = None
+    print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
+    counter = 0
 
     while True:
+        if counter >= 3:
+            print("3 consecutive incorrect responses recorded!\n"
+                  "Picking the default value (" + newest_date + ")...\n")
+            return higher_end_date
         try:
-            print("NOTE: The date has to be between 2020-12-08 and " + newest_date + ".")
+            counter += 1
             user_date = input("Type date here (YYYY-mm-dd): ")
             conv_user_date = datetime.strptime(user_date, "%Y-%m-%d")
         # datetime.strptime causes a ValueError if the format is incorrect
         except ValueError:
-            print("INCORRECT DATE FORMAT!\n")
-            continue
+            print("Incorrect date format!")
         else:
             date_is_correct = lower_end_date <= conv_user_date <= higher_end_date
-            if not date_is_correct:
-                print("INCORRECT DATE!\n")
-                continue
-            else:
-                # If both format and date are correct, break out of the loop.
-                break
-    return conv_user_date
+            if date_is_correct:
+                return conv_user_date
+            print("Incorrect date!")
 
 
-def take_vacc_type():
+def take_user_preference(choices, pref_name):
     """
-    Returns type of user-specified vaccination data (1st dose or fully vaccinated)
+    Records user preference from a list of choices
+        If user keeps picking incorrect choices, picks the first choice as the default one
+    Returns it as a string to be used in other functions
     """
-    # TODO: I can definitely change this to be far less 'iffy' if you catch my drift (smth with enums?)
+    counter = 0
     while True:
-        response = input("Type vaccination type here (\"ONE\" dose/\"FULLY\" vaccinated): ").lower()
-        if response not in ("one", "one dose", "fully", "fully vaccinated"):
-            print("INCORRECT RESPONSE!\n")
-            continue
-        else:
-            if response == "fully vaccinated":
-                response = "fully"
-            if response == "one dose":
-                response = "one"
-            break
-    return response
+        if counter >= 3:
+            print("3 consecutive incorrect responses recorded!\n"
+                  "Picking the default value (" + choices[0].upper() + ")...\n")
+            return choices[0]
+        response = input("Type " + pref_name + " here: ").lower()
+        if len(response) >= 3:
+            for choice in choices:
+                if response[0:3] in choice:
+                    return choice
+        counter += 1
+        print("Response incorrect or too short!")
 
 
-def collect_data(covid_data, country_codes, user_date, vacc_type):
+def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
     """
     Collects data from the main data file based on provided user preferences
-    Returns a table of country data to be used in generate_map
+    Returns a table of processed data to be used in generate_map
     """
-    valid_countries = {}
-    invalid_countries = {}
-    for OWID_country_code, country_info in covid_data.items():
-        # Skip invalid countries
-        # TODO: change this based on whether user wants continent data or country data
-        if OWID_country_code.startswith("OWID") or OWID_country_code not in country_codes:
+    valid_areas = {}
+    invalid_areas = {}
+    for OWID_area_code, area_info in covid_data.items():
+        # TODO: reduce the IFS here or break it up into another function
+        if OWID_area_code not in area_codes:
             continue
-        total_pop = country_info["population"]
-        country_data = country_info["data"]
-        country_code = country_codes[OWID_country_code]
-        for count, day in enumerate(country_data):
+        if area_type == "country":
+            if OWID_area_code.startswith("OWID"):
+                continue
+        else:
+            if not OWID_area_code.startswith("OWID"):
+                continue
+
+        total_pop = area_info["population"]
+        area_data = area_info["data"]
+        area_code = area_codes[OWID_area_code]
+        for count, day in enumerate(area_data):
             # day == country_data[count]
             date = datetime.strptime(day["date"], "%Y-%m-%d")
             if date == user_date:
-                valid_countries[country_code] = calc_vacc_perc(total_pop, vacc_type, country_data, count)
+                valid_areas[area_code] = calc_vacc_perc(total_pop, vacc_doses, area_data, count)
                 break
-        if country_code not in valid_countries or valid_countries[country_code] == 0:
-            invalid_countries[country_code] = valid_countries.pop(country_code, 0)
+        if area_code not in valid_areas or valid_areas[area_code] == 0:
+            invalid_areas[area_code] = valid_areas.pop(area_code, 0)
     # Add countries that the loop might have missed
-    invalid_countries = fill_map_holes(invalid_countries, valid_countries)
-    return valid_countries, invalid_countries
+    invalid_areas = fill_map_holes(invalid_areas, valid_areas)
+    return valid_areas, invalid_areas
 
 
-def calc_vacc_perc(total_pop, vacc_type, country_data, count):
+def calc_vacc_perc(total_pop, vacc_doses, country_data, count):
     """
     An extension of collect_data()
     1) Determines whether data exists for the given country and given day.
@@ -133,7 +140,7 @@ def calc_vacc_perc(total_pop, vacc_type, country_data, count):
         # TODO: check out whether there's a better looking alternative for these if/else statements
         else:
             vacc_pop = 0
-            if vacc_type == "one":
+            if "one" in vacc_doses:
                 if "people_vaccinated" in day:
                     vacc_pop = day["people_vaccinated"]
             else:
@@ -144,36 +151,46 @@ def calc_vacc_perc(total_pop, vacc_type, country_data, count):
     return vacc_percent
 
 
-def fill_map_holes(invalid_countries, valid_countries):
+def fill_map_holes(invalid_areas, valid_areas):
     """
     An extension of collect_data()
     Determines which countries on the Pygal map weren't "mentioned" during the assignment process
-    Then assigns them to invalid_countries, filling out any potential non-assigned countries on the map
+    Then assigns them to invalid_areas, filling out any potential non-assigned countries on the map
     """
-    with open("pygal-countries.csv", 'r', encoding='utf-8-sig', newline='') as file:
-        for pygal_country in file:
-            pygal_country = pygal_country.strip()
-            if pygal_country not in invalid_countries and pygal_country not in valid_countries:
-                invalid_countries[pygal_country] = 0
-    return invalid_countries
+    with open("pygal-areas.csv", 'r', encoding='utf-8-sig', newline='') as file:
+        for pygal_area in file:
+            pygal_area = pygal_area.strip()
+            if pygal_area not in invalid_areas and pygal_area not in valid_areas:
+                invalid_areas[pygal_area] = 0
+    return invalid_areas
 
 
-def generate_map(valid_countries, invalid_countries, user_date):
+def generate_map(valid_areas, invalid_areas, user_date, area_type, vacc_doses):
     """
     Determines the style (colors) to be used in the world map
-    Then generates a .svg file with the world map, using data from collect_data()
+    Then, using data from collect_data(), generates a .svg file with the world map.
     """
-    # TODO: make it so that smaller %'s aren't so aggressively light
-    # TODO: see if I can make the map larger
 
-    custom_style = Style(colors=('#169828', '#BBBBBB'))
-    worldmap_chart = pygal.maps.world.World(style=custom_style)
-    worldmap_chart.title = "Vaccination data for " + datetime.strftime(user_date, "%Y-%m-%d")
+    if area_type == "country":
+        custom_style = Style(colors=('rgb(22, 152, 40)', '#BBBBBB'))
+        worldmap = pygal.maps.world.World(style=custom_style)
+        worldmap.add('Vaccination %', valid_areas)
+    # Continents and their colors are handled differently
+    # (This makes me wish I chose something else instead of Pygal lol it's such a mess)
+    else:
+        values = []
+        for value in valid_areas.values():
+            values.append("rgba(22, 152, 40, " + str((value / 100) + 0.15) + ")")
+        values.append("#BBBBBB")
+        custom_style = Style(colors=values)
+        worldmap = pygal.maps.world.SupranationalWorld(style=custom_style)
+        for continent, value in valid_areas.items():
+            worldmap.add(continent.title().replace("_", " "), [(continent, value)])
+    worldmap.add('No data', invalid_areas)
 
-    # TODO: change this based on user-selected type of vaccination data
-    worldmap_chart.add('Vaccination %', valid_countries)
-    worldmap_chart.add('No data', invalid_countries)
-    worldmap_chart.render_to_file('vaccmap.svg')
+    date = datetime.strftime(user_date, '%Y-%m-%d')
+    worldmap.title = f"{area_type.title()} vaccination data ({vacc_doses.upper()}) for {date}"
+    worldmap.render_to_file('vaccmap.svg')
 
 
 if __name__ == '__main__':
