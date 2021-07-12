@@ -96,7 +96,7 @@ def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
     valid_areas = {}
     invalid_areas = {}
     for OWID_area_code, area_info in covid_data.items():
-        # TODO: reduce the IFS here or break it up into another function
+        # TODO: reduce the IFS here
         if OWID_area_code not in area_codes:
             continue
         if area_type == "country":
@@ -107,14 +107,9 @@ def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
                 continue
 
         total_pop = area_info["population"]
-        area_data = area_info["data"]
+        area_data = area_info["data"][::-1]
         area_code = area_codes[OWID_area_code]
-        for count, day in enumerate(area_data):
-            # day == country_data[count]
-            date = datetime.strptime(day["date"], "%Y-%m-%d")
-            if date == user_date:
-                valid_areas[area_code] = calc_vacc_perc(total_pop, vacc_doses, area_data, count)
-                break
+        valid_areas[area_code] = calc_vacc_perc(total_pop, vacc_doses, area_data, user_date)
         if area_code not in valid_areas or valid_areas[area_code] == 0:
             invalid_areas[area_code] = valid_areas.pop(area_code, 0)
     # Add countries that the loop might have missed
@@ -122,7 +117,7 @@ def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
     return valid_areas, invalid_areas
 
 
-def calc_vacc_perc(total_pop, vacc_doses, country_data, count):
+def calc_vacc_perc(total_pop, vacc_doses, area_data, user_date):
     """
     An extension of collect_data()
     1) Determines whether data exists for the given country and given day.
@@ -130,15 +125,13 @@ def calc_vacc_perc(total_pop, vacc_doses, country_data, count):
     2) Calculates vaccination percentage and returns that into the current country's value
     """
     # Temporary variable
-    vacc_percent = 0
-    day = country_data[count]
+    first_available_date = datetime.strptime(area_data[0]["date"], "%Y-%m-%d")
+    delta = (user_date - first_available_date).days
 
-    for i in range(1, 22):
-        if "total_vaccinations" not in day:
-            day = country_data[count - i]
-            continue
-        # TODO: check out whether there's a better looking alternative for these if/else statements
-        else:
+    for i in range(0, (22 - delta)):
+        day = area_data[i]
+        # TODO: see if there's a better looking alternative for these ifs
+        if "total_vaccinations" in day:
             vacc_pop = 0
             if "one" in vacc_doses:
                 if "people_vaccinated" in day:
@@ -146,9 +139,8 @@ def calc_vacc_perc(total_pop, vacc_doses, country_data, count):
             else:
                 if "people_fully_vaccinated" in day:
                     vacc_pop = day["people_fully_vaccinated"]
-            vacc_percent = round((vacc_pop / total_pop) * 100, 2)
-            break
-    return vacc_percent
+            return round((vacc_pop / total_pop) * 100, 2)
+    return 0
 
 
 def fill_map_holes(invalid_areas, valid_areas):
@@ -174,7 +166,7 @@ def generate_map(valid_areas, invalid_areas, user_date, area_type, vacc_doses):
     if area_type == "country":
         custom_style = Style(colors=('rgb(22, 152, 40)', '#BBBBBB'))
         worldmap = pygal.maps.world.World(style=custom_style)
-        worldmap.add('Vaccination %', valid_areas)
+        worldmap.add('% vaccinated', valid_areas)
     # Continents and their colors are handled differently
     # (This makes me wish I chose something else instead of Pygal lol it's such a mess)
     else:
