@@ -11,13 +11,11 @@ Unpack the included .json data file and put all the included files in the same d
 After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg - preferably on a modern browser.
 
 # Known issues
-- The .svg file's background can be shown as black if opened in a program other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and is not something I can fix.
+- The .svg file's background can be shown as black if opened in anything other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and is not something I can fix.
+- There is a bug preventing a country's value to be applied when data doesn't exist for that given day. This will be fixed in the next commit.
 
 # TODO's
-- Add choice for data to be continent-based rather than country-based
-- Change the colors to be much less noticeable for countries with smaller %'s of vaccinations
-- Change what happens when the user enters an incorrect date - at some point just skip to the latest data entry point
-- Introduce the wonders of the internet to the program by letting the user download the latest data file directly
+- Introduce the wonders of the internet to the program by letting the user download the latest data file directly from Github
 
 # Credits
 - Pygal was made by [Kozea](https://github.com/Kozea)
@@ -27,5 +25,3 @@ After the program's done generating the world map, you can access it by opening 
 This is my first project in my programming journey! If you have tips on how I can improve this program, please feel free to message me and let me know.
 
 To alleviate the scarcity of data in some countries, the program checks for the most recent, available data for each country for up to 3 weeks away from the user-given date.
-
-The included owid_to_pygal.json file was also created by me, using a combination of Excel and Python code.
