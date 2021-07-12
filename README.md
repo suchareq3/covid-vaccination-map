@@ -12,7 +12,6 @@ After the program's done generating the world map, you can access it by opening 
 
 # Known issues
 - The .svg file's background can be shown as black if opened in anything other than a modern browser (Chrome, Firefox, Edge etc.) This is a quirk of the Pygal library and is not something I can fix.
-- There is a bug preventing a country's value to be applied when data doesn't exist for that given day. This will be fixed in the next commit.
 
 # TODO's
 - Introduce the wonders of the internet to the program by letting the user download the latest data file directly from Github
