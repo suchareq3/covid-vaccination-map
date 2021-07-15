@@ -2,6 +2,7 @@
 Generates a world map with worldwide vaccination data in the form of a .svg file.
 Vaccination data is based on the user-given date and other preferences specified by the user.
 """
+import csv
 import json
 from datetime import datetime
 import pygal
@@ -9,31 +10,35 @@ from pygal.style import Style
 
 
 def main():
-    with open("owid-covid-data.json") as data_file, open("owid_to_pygal.json") as format_file:
-        covid_data = json.load(data_file)
-        country_codes = json.load(format_file)
+    with open("vaccinations.json") as vacc_data_file, \
+            open("population_2020.csv") as pop_data_file, \
+            open("owid_to_pygal.json") as format_file:
+        vacc_data = json.load(vacc_data_file)
+        area_codes = json.load(format_file)
         print("Welcome! This program generates a world map full of vaccination data\n"
               "in the form of a .svg file in the same location as main.py\n"
               "based on your user-given date and vaccination type.\n")
-        newest_date = update_date(covid_data)
+        newest_date = update_date(vacc_data)
         user_date = take_date(newest_date)
         area_type = take_user_preference(["country", "continent"],
                                          "area type (COUNTRIES or CONTINENTS)")
         vacc_doses = take_user_preference(["one dose", "all doses"],
                                           "vaccination doses (ONE dose or ALL doses)")
-        valid_countries, invalid_countries = collect_data(covid_data, country_codes, user_date, vacc_doses, area_type)
-        generate_map(valid_countries, invalid_countries, user_date, area_type, vacc_doses)
+        valid_areas, invalid_areas = collect_data(vacc_data, pop_data_file, area_codes,
+                                                  user_date, vacc_doses, area_type)
+        generate_map(valid_areas, invalid_areas, user_date, area_type, vacc_doses)
 
 
-def update_date(covid_data):
+def update_date(vacc_data):
     """
     Checks the data file's most recent entry
     Returns the most recent date as a YYYY-MM-DD string
     """
-    for country_code, country_info in covid_data.items():
+    # TODO: update this INSTEAD based on remote file modified date?
+    for country in vacc_data:
         # Check USA's data because of the reliably high frequency of updates
-        if country_code == "USA":
-            data_entries = country_info['data']
+        if country["iso_code"] == "USA":
+            data_entries = country['data']
             last_entry = data_entries[-1]
             latest_date = last_entry['date']
             return latest_date
@@ -88,15 +93,17 @@ def take_user_preference(choices, pref_name):
         print("Response incorrect or too short!")
 
 
-def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
+def collect_data(vacc_data, pop_data_file, area_codes, user_date, vacc_doses, area_type):
     """
     Collects data from the main data file based on provided user preferences
     Returns a table of processed data to be used in generate_map
     """
     valid_areas = {}
     invalid_areas = {}
-    for OWID_area_code, area_info in covid_data.items():
+    pop_data = csv.DictReader(pop_data_file)
+    for country in vacc_data:
         # TODO: reduce the IFS here
+        OWID_area_code = country["iso_code"]
         if OWID_area_code not in area_codes:
             continue
         if area_type == "country":
@@ -105,9 +112,8 @@ def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
         else:
             if not OWID_area_code.startswith("OWID"):
                 continue
-
-        total_pop = area_info["population"]
-        area_data = area_info["data"][::-1]
+        total_pop = check_population(OWID_area_code, pop_data, pop_data_file)
+        area_data = country["data"][::-1]
         area_code = area_codes[OWID_area_code]
         valid_areas[area_code] = calc_vacc_perc(total_pop, vacc_doses, area_data, user_date)
         if area_code not in valid_areas or valid_areas[area_code] == 0:
@@ -117,6 +123,19 @@ def collect_data(covid_data, area_codes, user_date, vacc_doses, area_type):
     return valid_areas, invalid_areas
 
 
+def check_population(OWID_area_code, pop_data, pop_data_file):
+    """
+    Takes country's area code from vaccinations.json
+    Returns country's population number from population_2020.csv
+    """
+    for country in pop_data:
+        if country['iso_code'] == OWID_area_code:
+            # DictReader's iterator doesn't reset on its own, have to do it manually with seek()
+            pop_data_file.seek(0)
+            return int(country['population'])
+    return 0
+
+
 def calc_vacc_perc(total_pop, vacc_doses, area_data, user_date):
     """
     An extension of collect_data()
@@ -124,22 +143,20 @@ def calc_vacc_perc(total_pop, vacc_doses, area_data, user_date):
         a) if it doesn't exist for the given day, attempt to find data within the last 21 days
     2) Calculates vaccination percentage and returns that into the current country's value
     """
-    # Temporary variable
     first_available_date = datetime.strptime(area_data[0]["date"], "%Y-%m-%d")
     delta = (user_date - first_available_date).days
 
     for i in range(0, (22 - delta)):
         day = area_data[i]
         # TODO: see if there's a better looking alternative for these ifs
-        if "total_vaccinations" in day:
-            vacc_pop = 0
-            if "one" in vacc_doses:
-                if "people_vaccinated" in day:
-                    vacc_pop = day["people_vaccinated"]
-            else:
-                if "people_fully_vaccinated" in day:
-                    vacc_pop = day["people_fully_vaccinated"]
-            return round((vacc_pop / total_pop) * 100, 2)
+        vacc_pop = 0
+        if "one" in vacc_doses:
+            if "people_vaccinated" in day:
+                vacc_pop = day["people_vaccinated"]
+        else:
+            if "people_fully_vaccinated" in day:
+                vacc_pop = day["people_fully_vaccinated"]
+        return round((vacc_pop / total_pop) * 100, 2)
     return 0
 
 
@@ -162,7 +179,6 @@ def generate_map(valid_areas, invalid_areas, user_date, area_type, vacc_doses):
     Determines the style (colors) to be used in the world map
     Then, using data from collect_data(), generates a .svg file with the world map.
     """
-
     if area_type == "country":
         custom_style = Style(colors=('rgb(22, 152, 40)', '#BBBBBB'))
         worldmap = pygal.maps.world.World(style=custom_style)

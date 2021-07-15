@@ -4,10 +4,10 @@ Python program that uses Our World In Data's vaccination data to generate a worl
 # Requirements
 - Python (3.5 or higher) 
 - [Pygal](http://www.pygal.org/en/stable/)
-- 7zip or something else to unpack the included OWID data file (alternatively, download the .json file from [OWID's website](https://ourworldindata.org/covid-vaccinations))
+- Optionally, download fresh & updated data files from OWID's github [here](https://github.com/owid/covid-19-data/blob/master/public/data/vaccinations/vaccinations.json) and [here](https://github.com/owid/covid-19-data/blob/master/scripts/input/un/population_2020.csv).
 
 # Usage
-Unpack the included .json data file and put all the included files in the same directory. Fire up main.py and follow the instructions. 
+Fire up main.py and follow the instructions. 
 After the program's done generating the world map, you can access it by opening the newly created vaccmap.svg - preferably on a modern browser.
 
 # Known issues
