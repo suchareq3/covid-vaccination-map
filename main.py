@@ -4,29 +4,93 @@ Vaccination data is based on the user-given date and other preferences specified
 """
 import csv
 import json
+import os.path
+import sys
 from datetime import datetime
+
 import pygal
+import requests
 from pygal.style import Style
+from requests import get
+from tqdm import tqdm
 
 
 def main():
+    print("Connecting to Github to check for data updates...")
+    update_data()
     with open("vaccinations.json") as vacc_data_file, \
             open("population_2020.csv") as pop_data_file, \
             open("owid_to_pygal.json") as format_file:
         vacc_data = json.load(vacc_data_file)
         area_codes = json.load(format_file)
-        print("Welcome! This program generates a world map full of vaccination data\n"
+        print("\nWelcome! This program generates a world map full of vaccination data\n"
               "in the form of a .svg file in the same location as main.py\n"
               "based on your user-given date and vaccination type.\n")
         newest_date = update_date(vacc_data)
         user_date = take_date(newest_date)
-        area_type = take_user_preference(["country", "continent"],
-                                         "area type (COUNTRIES or CONTINENTS)")
-        vacc_doses = take_user_preference(["one dose", "all doses"],
-                                          "vaccination doses (ONE dose or ALL doses)")
+        area_type = take_user_preference(["country", "continent"], "area type (COUNTRIES or CONTINENTS)")
+        vacc_doses = take_user_preference(["one dose", "all doses"], "vaccination doses (ONE dose or ALL doses)")
         valid_areas, invalid_areas = collect_data(vacc_data, pop_data_file, area_codes,
                                                   user_date, vacc_doses, area_type)
         generate_map(valid_areas, invalid_areas, user_date, area_type, vacc_doses)
+        input("Done! To see the result, open the newly generated vaccmap.svg with a browser.\n"
+              "Press any key to quit...")
+
+
+def update_data():
+    """
+    Connects to Github via the internet to determine data's freshness
+    Presents the user with a choice to download updated data files
+    """
+    file_paths = {"vaccinations.json": "public/data/vaccinations/vaccinations.json",
+                  "population_2020.csv": "scripts/input/un/population_2020.csv"}
+    for file_name, remote_path in file_paths.items():
+        while True:
+            try:
+                local_file_date = datetime.fromtimestamp(os.path.getmtime(file_name))
+                api_url = f"https://api.github.com/repos/owid/covid-19-data/commits?path={remote_path}&per_page=1"
+                last_updated = requests.get(api_url).json()[0]['commit']['committer']['date']
+                remote_file_date = datetime.strptime(last_updated, "%Y-%m-%dT%H:%M:%SZ")
+                delta = (remote_file_date - local_file_date).days
+                if delta >= 0:
+                    choice = input(f"{file_name} is OUTDATED. It's roughly {str(delta + 1)} days old. "
+                                   "Would you like to update it? (Y/N): ")
+                    if "y" in choice.lower():
+                        download_file(file_name, remote_path)
+                break
+            except requests.exceptions.ConnectionError:
+                print("CAN'T CONNECT TO THE INTERNET! Your files might be out of date. "
+                      "Try checking your internet connection or Github's status.")
+                return
+            except PermissionError:
+                input(f"PERMISSION ERROR! Cannot access {file_name}. "
+                      "It might be open in another program - try closing it, then launch main.py again.\n"
+                      "Press any key to quit...")
+                sys.exit(0)
+            except FileNotFoundError:
+                choice = input(f"CANNOT FIND {file_name}! It is required to run the program.\n"
+                               "Would you like to download it from Github? (Y/N): ")
+                if "y" in choice.lower():
+                    download_file(file_name, remote_path)
+                else:
+                    input("Understood. Quitting program.\n"
+                          "Press any key to quit...")
+                    sys.exit(0)
+
+
+def download_file(file_name, remote_path):
+    """
+    An extension of download_data()
+    Downloads specific file from OWID's 'covid-19-data' repo
+    """
+    download_url = f"https://github.com/owid/covid-19-data/raw/master/{remote_path}"
+    downloaded_data = get(download_url, stream=True)
+    progress = tqdm(unit="B", unit_scale=True, unit_divisor=1024, desc=file_name)
+    with open(file_name, "wb") as f:
+        for chunk in downloaded_data.iter_content(chunk_size=1024):
+            data_size = f.write(chunk)
+            progress.update(data_size)
+        progress.close()
 
 
 def update_date(vacc_data):
@@ -34,7 +98,7 @@ def update_date(vacc_data):
     Checks the data file's most recent entry
     Returns the most recent date as a YYYY-MM-DD string
     """
-    # TODO: update this INSTEAD based on remote file modified date?
+    # TODO: should I do this instead via the data file's last modified date..?
     for country in vacc_data:
         # Check USA's data because of the reliably high frequency of updates
         if country["iso_code"] == "USA":
@@ -118,7 +182,6 @@ def collect_data(vacc_data, pop_data_file, area_codes, user_date, vacc_doses, ar
         valid_areas[area_code] = calc_vacc_perc(total_pop, vacc_doses, area_data, user_date)
         if area_code not in valid_areas or valid_areas[area_code] == 0:
             invalid_areas[area_code] = valid_areas.pop(area_code, 0)
-    # Add countries that the loop might have missed
     invalid_areas = fill_map_holes(invalid_areas, valid_areas)
     return valid_areas, invalid_areas
 
@@ -130,7 +193,7 @@ def check_population(OWID_area_code, pop_data, pop_data_file):
     """
     for country in pop_data:
         if country['iso_code'] == OWID_area_code:
-            # DictReader's iterator doesn't reset on its own, have to do it manually with seek()
+            # DictReader's iterator doesn't reset on its own, I have to do it manually with seek()
             pop_data_file.seek(0)
             return int(country['population'])
     return 0
