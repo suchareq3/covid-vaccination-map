@@ -71,7 +71,13 @@ def update_data():
                 choice = input(f"CANNOT FIND {file_name}! It is required to run the program.\n"
                                "Would you like to download it from Github? (Y/N): ")
                 if "y" in choice.lower():
-                    download_file(file_name, remote_path)
+                    try:
+                        download_file(file_name, remote_path)
+                    except requests.exceptions.ConnectionError:
+                        input("CAN'T CONNECT TO THE INTERNET EITHER! :(\n"
+                              "Try checking your internet connection or Github's status.\n"
+                              "Quitting program...")
+                        sys.exit(0)
                 else:
                     input("Understood. Quitting program.\n"
                           "Press any key to quit...")
