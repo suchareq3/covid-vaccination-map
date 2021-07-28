@@ -26,7 +26,7 @@ def main():
         print("\nWelcome! This program generates a world map full of vaccination data\n"
               "in the form of a .svg file in the same location as main.py\n"
               "based on your user-given date and vaccination type.\n")
-        newest_date = update_date(vacc_data)
+        newest_date = datetime.fromtimestamp(os.path.getmtime("vaccinations.json")).strftime("%Y-%m-%d")
         user_date = take_date(newest_date)
         area_type = take_user_preference(["country", "continent"], "area type (COUNTRIES or CONTINENTS)")
         vacc_doses = take_user_preference(["one dose", "all doses"], "vaccination doses (ONE dose or ALL doses)")
@@ -51,9 +51,9 @@ def update_data():
                 api_url = f"https://api.github.com/repos/owid/covid-19-data/commits?path={remote_path}&per_page=1"
                 last_updated = requests.get(api_url).json()[0]['commit']['committer']['date']
                 remote_file_date = datetime.strptime(last_updated, "%Y-%m-%dT%H:%M:%SZ")
-                delta = (remote_file_date - local_file_date).days
-                if delta >= 0:
-                    choice = input(f"{file_name} is OUTDATED. It's roughly {str(delta + 1)} days old. "
+                day_difference = (remote_file_date - local_file_date).days
+                if day_difference >= 0:
+                    choice = input(f"{file_name} is OUTDATED. It's roughly {str(day_difference + 1)} days old. "
                                    "Would you like to update it? (Y/N): ")
                     if "y" in choice.lower():
                         download_file(file_name, remote_path)
@@ -91,21 +91,6 @@ def download_file(file_name, remote_path):
             data_size = f.write(chunk)
             progress.update(data_size)
         progress.close()
-
-
-def update_date(vacc_data):
-    """
-    Checks the data file's most recent entry
-    Returns the most recent date as a YYYY-MM-DD string
-    """
-    # TODO: should I do this instead via the data file's last modified date..?
-    for country in vacc_data:
-        # Check USA's data because of the reliably high frequency of updates
-        if country["iso_code"] == "USA":
-            data_entries = country['data']
-            last_entry = data_entries[-1]
-            latest_date = last_entry['date']
-            return latest_date
 
 
 def take_date(newest_date):
